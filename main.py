@@ -82,16 +82,17 @@ QMainWindow {{
 
 QWidget {{
     font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+    font-size: 15px;
     color: {Colors.TEXT_PRIMARY};
 }}
 
 /* === 全局输入框 === */
 QLineEdit, QComboBox, QDateEdit, QTextEdit {{
-    padding: 10px 14px;
+    padding: 12px 14px;
     border: 1.5px solid {Colors.INPUT_BORDER};
     border-radius: 10px;
     background: #ffffff;
-    font-size: 15px;
+    font-size: 16px;
     color: {Colors.TEXT_PRIMARY};
     selection-background-color: {Colors.ACCENT_LIGHT};
 }}
@@ -100,38 +101,48 @@ QLineEdit:focus, QComboBox:focus, QDateEdit:focus, QTextEdit:focus {{
     border-color: {Colors.ACCENT};
 }}
 
+/* === 下拉框 === */
 QComboBox::drop-down {{
     subcontrol-origin: padding;
     subcontrol-position: top right;
-    width: 30px;
-    border-left: 1px solid {Colors.INPUT_BORDER};
+    width: 36px;
+    border: none;
     border-top-right-radius: 10px;
     border-bottom-right-radius: 10px;
+    background: transparent;
+}}
+
+QComboBox::down-arrow {{
+    width: 14px;
+    height: 14px;
 }}
 
 QComboBox QAbstractItemView {{
     background: #fff;
     border: 1px solid {Colors.CARD_BORDER};
-    border-radius: 8px;
-    padding: 6px;
+    border-radius: 10px;
+    padding: 8px;
+    font-size: 16px;
     selection-background-color: {Colors.ACCENT_LIGHT};
     selection-color: {Colors.TEXT_PRIMARY};
     outline: none;
 }}
 
 QComboBox QAbstractItemView::item {{
-    padding: 8px 12px;
-    border-radius: 6px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    min-height: 32px;
 }}
 
 /* === 日期编辑框的下拉按钮 === */
 QDateEdit::drop-down {{
     subcontrol-origin: padding;
     subcontrol-position: top right;
-    width: 30px;
-    border-left: 1px solid {Colors.INPUT_BORDER};
+    width: 36px;
+    border: none;
     border-top-right-radius: 10px;
     border-bottom-right-radius: 10px;
+    background: transparent;
 }}
 
 /* === 滚动条 === */
@@ -196,7 +207,7 @@ QTableWidget::item {{
 QHeaderView::section {{
     background: #fdf9f3;
     color: {Colors.TEXT_SECONDARY};
-    font-size: 13px;
+    font-size: 14px;
     font-weight: bold;
     padding: 14px;
     border: none;
@@ -212,7 +223,7 @@ QMessageBox {{
 QMessageBox QPushButton {{
     padding: 8px 20px;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 15px;
     min-width: 80px;
 }}
 """
@@ -428,7 +439,7 @@ class EditDialog(QDialog):
 
     def _make_label(self, text):
         lbl = QLabel(text)
-        lbl.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {Colors.TEXT_SECONDARY};")
+        lbl.setStyleSheet(f"font-size: 15px; font-weight: bold; color: {Colors.TEXT_SECONDARY};")
         return lbl
 
     def _primary_btn_css(self):
@@ -544,7 +555,7 @@ class CategoryEditDialog(QDialog):
 
     def _make_label(self, text):
         lbl = QLabel(text)
-        lbl.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {Colors.TEXT_SECONDARY};")
+        lbl.setStyleSheet(f"font-size: 15px; font-weight: bold; color: {Colors.TEXT_SECONDARY};")
         return lbl
 
     def _primary_btn_css(self):
@@ -679,7 +690,7 @@ def make_page_title(text):
     """统一风格的页面标题"""
     title = QLabel(text)
     title.setStyleSheet(f"""
-        font-size: 24px;
+        font-size: 26px;
         font-weight: bold;
         color: {Colors.TEXT_PRIMARY};
         padding-bottom: 4px;
@@ -692,7 +703,7 @@ def make_section_label(text):
     """统一风格的表单标签"""
     label = QLabel(text)
     label.setStyleSheet(f"""
-        font-size: 14px;
+        font-size: 15px;
         font-weight: bold;
         color: {Colors.TEXT_SECONDARY};
         margin-bottom: 2px;
@@ -749,13 +760,13 @@ class MainWindow(QMainWindow):
 
         # 橙色装饰点
         dot = QLabel("●")
-        dot.setStyleSheet(f"color: {Colors.ACCENT}; font-size: 12px; background: transparent;")
+        dot.setStyleSheet(f"color: {Colors.ACCENT}; font-size: 13px; background: transparent;")
         title_layout.addWidget(dot)
 
         title = QLabel("晚秋记账")
         title.setStyleSheet(f"""
             color: {Colors.SIDEBAR_TEXT};
-            font-size: 19px;
+            font-size: 20px;
             font-weight: bold;
             background: transparent;
             letter-spacing: 1.5px;
@@ -799,7 +810,7 @@ class MainWindow(QMainWindow):
                     border-left: 3px solid transparent;
                     border-radius: 6px;
                     padding: 13px 16px;
-                    font-size: 15px;
+                    font-size: 16px;
                     text-align: left;
                 }}
                 QPushButton:hover {{
@@ -836,7 +847,7 @@ class MainWindow(QMainWindow):
         summary_icon = QLabel("💰 当月支出")
         summary_icon.setStyleSheet(f"""
             color: {Colors.SIDEBAR_TEXT_MUTED};
-            font-size: 12px;
+            font-size: 13px;
             background: transparent;
             letter-spacing: 0.3px;
         """)
@@ -845,7 +856,7 @@ class MainWindow(QMainWindow):
         self.summary_amount = QLabel("¥ 0.00")
         self.summary_amount.setStyleSheet(f"""
             color: {Colors.ACCENT};
-            font-size: 24px;
+            font-size: 26px;
             font-weight: bold;
             background: transparent;
         """)
@@ -985,7 +996,7 @@ class MainWindow(QMainWindow):
                 border: none;
                 border-radius: 12px;
                 padding: 12px 32px;
-                font-size: 16px;
+                font-size: 17px;
                 font-weight: bold;
             }}
             QPushButton:hover {{
@@ -1062,7 +1073,7 @@ class MainWindow(QMainWindow):
         filter_card_layout.setSpacing(12)
 
         month_label = QLabel("筛选月份")
-        month_label.setStyleSheet(f"font-size: 14px; color: {Colors.TEXT_SECONDARY}; font-weight: bold; background: transparent;")
+        month_label.setStyleSheet(f"font-size: 15px; color: {Colors.TEXT_SECONDARY}; font-weight: bold; background: transparent;")
         filter_card_layout.addWidget(month_label)
 
         self.filter_month = QComboBox()
@@ -1087,7 +1098,7 @@ class MainWindow(QMainWindow):
                 border: 1.5px solid {Colors.CARD_BORDER};
                 border-radius: 8px;
                 padding: 8px 16px;
-                font-size: 13px;
+                font-size: 14px;
             }}
             QPushButton:hover {{
                 border-color: {Colors.ACCENT};
@@ -1123,7 +1134,7 @@ class MainWindow(QMainWindow):
             QTableWidget::item {{
                 padding: 12px 16px;
                 border-bottom: 1px solid #f5f0e9;
-                font-size: 14px;
+                font-size: 15px;
             }}
             QTableWidget::item:alternate {{
                 background: #fdf9f3;
@@ -1131,7 +1142,7 @@ class MainWindow(QMainWindow):
             QHeaderView::section {{
                 background: #fdf9f3;
                 color: {Colors.TEXT_SECONDARY};
-                font-size: 13px;
+                font-size: 14px;
                 font-weight: bold;
                 padding: 14px 16px;
                 border: none;
@@ -1187,7 +1198,7 @@ class MainWindow(QMainWindow):
                     border: 1.5px solid {Colors.CARD_BORDER};
                     border-radius: 6px;
                     padding: 5px 14px;
-                    font-size: 13px;
+                    font-size: 14px;
                 }}
                 QPushButton:hover {{
                     border-color: {Colors.ACCENT};
@@ -1207,7 +1218,7 @@ class MainWindow(QMainWindow):
                     border: 1px solid {Colors.DANGER};
                     border-radius: 6px;
                     padding: 5px 14px;
-                    font-size: 13px;
+                    font-size: 14px;
                 }}
                 QPushButton:hover {{
                     background: {Colors.DANGER};
@@ -1261,7 +1272,7 @@ class MainWindow(QMainWindow):
         month_card_layout.setSpacing(12)
 
         month_label = QLabel("选择月份")
-        month_label.setStyleSheet(f"font-size: 14px; color: {Colors.TEXT_SECONDARY}; font-weight: bold; background: transparent;")
+        month_label.setStyleSheet(f"font-size: 15px; color: {Colors.TEXT_SECONDARY}; font-weight: bold; background: transparent;")
         month_card_layout.addWidget(month_label)
 
         self.stats_month = QComboBox()
@@ -1307,7 +1318,7 @@ class MainWindow(QMainWindow):
         chart_card_layout = QVBoxLayout(chart_card)
         chart_card_layout.setContentsMargins(20, 20, 20, 20)
         chart_title = QLabel("支出分类占比")
-        chart_title.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Colors.TEXT_PRIMARY}; background: transparent;")
+        chart_title.setStyleSheet(f"font-size: 17px; font-weight: bold; color: {Colors.TEXT_PRIMARY}; background: transparent;")
         chart_card_layout.addWidget(chart_title)
         self.pie_chart = PieChartCanvas()
         chart_card_layout.addWidget(self.pie_chart)
@@ -1336,7 +1347,7 @@ class MainWindow(QMainWindow):
 
         title_label = QLabel(title)
         title_label.setStyleSheet(
-            f"font-size: 13px; color: {Colors.TEXT_SECONDARY}; background: transparent;"
+            f"font-size: 14px; color: {Colors.TEXT_SECONDARY}; background: transparent;"
         )
         title_row.addWidget(title_label)
         title_row.addStretch()
@@ -1348,7 +1359,7 @@ class MainWindow(QMainWindow):
     def _stat_card_value(self, color):
         lbl = QLabel("¥ 0.00")
         lbl.setStyleSheet(f"""
-            font-size: 26px;
+            font-size: 28px;
             font-weight: 600;
             color: {color};
             background: transparent;
@@ -1383,7 +1394,7 @@ class MainWindow(QMainWindow):
         add_card_layout.setSpacing(12)
 
         icon_label = QLabel("图标")
-        icon_label.setStyleSheet(f"font-size: 14px; color: {Colors.TEXT_SECONDARY}; font-weight: bold; background: transparent;")
+        icon_label.setStyleSheet(f"font-size: 15px; color: {Colors.TEXT_SECONDARY}; font-weight: bold; background: transparent;")
         add_card_layout.addWidget(icon_label)
 
         self.new_cat_icon = QLineEdit("📌")
@@ -1393,7 +1404,7 @@ class MainWindow(QMainWindow):
         add_card_layout.addWidget(self.new_cat_icon)
 
         name_label = QLabel("名称")
-        name_label.setStyleSheet(f"font-size: 14px; color: {Colors.TEXT_SECONDARY}; font-weight: bold; background: transparent;")
+        name_label.setStyleSheet(f"font-size: 15px; color: {Colors.TEXT_SECONDARY}; font-weight: bold; background: transparent;")
         add_card_layout.addWidget(name_label)
 
         self.new_cat_name = QLineEdit()
@@ -1413,7 +1424,7 @@ class MainWindow(QMainWindow):
                 border: none;
                 border-radius: 10px;
                 padding: 10px 22px;
-                font-size: 14px;
+                font-size: 15px;
                 font-weight: bold;
             }}
             QPushButton:hover {{
@@ -1463,7 +1474,7 @@ class MainWindow(QMainWindow):
             card_layout.setSpacing(10)
 
             icon_label = QLabel(c['icon'])
-            icon_label.setStyleSheet("font-size: 24px; background: transparent;")
+            icon_label.setStyleSheet("font-size: 26px; background: transparent;")
             card_layout.addWidget(icon_label)
 
             name_label = QLabel(c['name'])
@@ -1474,7 +1485,7 @@ class MainWindow(QMainWindow):
                 card_layout.addStretch()
                 badge = QLabel("默认")
                 badge.setStyleSheet(f"""
-                    font-size: 11px;
+                    font-size: 12px;
                     color: {Colors.TEXT_MUTED};
                     background: #f5efe6;
                     padding: 3px 10px;
@@ -1492,7 +1503,7 @@ class MainWindow(QMainWindow):
                         background: none;
                         border: none;
                         color: #ccc;
-                        font-size: 15px;
+                        font-size: 16px;
                         border-radius: 6px;
                     }}
                     QPushButton:hover {{
@@ -1512,7 +1523,7 @@ class MainWindow(QMainWindow):
                         background: none;
                         border: none;
                         color: #ccc;
-                        font-size: 16px;
+                        font-size: 17px;
                         border-radius: 6px;
                     }}
                     QPushButton:hover {{
