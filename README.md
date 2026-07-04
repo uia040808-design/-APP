@@ -55,13 +55,27 @@ pip install PyQt6 matplotlib -i https://pypi.tuna.tsinghua.edu.cn/simple
 python main.py
 ```
 
+> 💡 如果你使用 Claude Code，可以在项目目录下直接输入 `/start` 一键启动（自动检查并安装依赖）。
+
+### `/start` 一键启动（Claude Code 用户）
+
+本项目内置了 Claude Code 自定义技能，在项目目录下输入 `/start` 即可：
+
+1. 自动检查 PyQt6、Matplotlib 是否已安装
+2. 未安装则自动安装
+3. 启动应用
+
 ## 📁 项目结构
 
 ```
 晚秋记账/
-├── main.py          # 主程序（界面 + 数据库 + 贪吃蛇游戏）
-├── CLAUDE.md        # 项目开发说明
-└── README.md        # 本文件
+├── main.py                 # 主程序（界面 + 数据库 + 贪吃蛇游戏）
+├── CLAUDE.md               # 项目开发说明
+├── README.md               # 本文件
+└── .claude/
+    └── skills/
+        └── start/
+            └── SKILL.md    # /start 一键启动技能
 ```
 
 ## 💾 数据存储
