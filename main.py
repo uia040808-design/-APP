@@ -386,8 +386,11 @@ class EditDialog(QDialog):
 
         # 类型
         self.type_input = QComboBox()
-        self.type_input.addItems(['expense', 'income'])
-        self.type_input.setCurrentText(record['type'])
+        self.type_input.addItem('支出', 'expense')
+        self.type_input.addItem('收入', 'income')
+        idx = self.type_input.findData(record['type'])
+        if idx >= 0:
+            self.type_input.setCurrentIndex(idx)
         self.type_input.currentTextChanged.connect(self._on_type_changed)
         layout.addRow(self._make_label("类型"), self.type_input)
 
@@ -464,7 +467,7 @@ class EditDialog(QDialog):
 
     def _load_categories(self):
         cats = self.db.get_categories()
-        rtype = self.type_input.currentText()
+        rtype = self.type_input.currentData()
         filtered = [c for c in cats if c['name'] == '收入'] if rtype == 'income' else [c for c in cats if c['name'] != '收入']
         self.category_input.clear()
         for c in filtered:
@@ -488,7 +491,7 @@ class EditDialog(QDialog):
         self.result_data = {
             'id': self.record['id'],
             'amount': amount,
-            'type': self.type_input.currentText(),
+            'type': self.type_input.currentData(),
             'category': self.category_input.currentData(),
             'subCategory': '',
             'note': self.note_input.text(),
@@ -926,7 +929,8 @@ class MainWindow(QMainWindow):
         type_layout.setSpacing(6)
         type_layout.addWidget(make_section_label("类型"))
         self.record_type = QComboBox()
-        self.record_type.addItems(['expense', 'income'])
+        self.record_type.addItem('支出', 'expense')
+        self.record_type.addItem('收入', 'income')
         self.record_type.setMinimumHeight(44)
         self.record_type.currentTextChanged.connect(self._load_categories_for_form)
         type_layout.addWidget(self.record_type)
@@ -1002,7 +1006,7 @@ class MainWindow(QMainWindow):
 
     def _load_categories_for_form(self):
         cats = self.db.get_categories()
-        rtype = self.record_type.currentText()
+        rtype = self.record_type.currentData()
         filtered = [c for c in cats if c['name'] == '收入'] if rtype == 'income' else [c for c in cats if c['name'] != '收入']
         self.record_category.clear()
         self.record_category.addItem("请选择分类", None)
@@ -1026,7 +1030,7 @@ class MainWindow(QMainWindow):
 
         self.db.add_record(
             amount=amount,
-            rtype=self.record_type.currentText(),
+            rtype=self.record_type.currentData(),
             category=category,
             sub_category='',
             note=self.record_note.text().strip(),
@@ -1279,19 +1283,19 @@ class MainWindow(QMainWindow):
         cards_row.setSpacing(16)
 
         # 支出卡片
-        self.expense_card = self._make_stat_card("📉 支出合计", "#c0392b")
-        self.expense_value = self._stat_card_value("#c0392b")
+        self.expense_card = self._make_stat_card("支出合计", "#e74c3c")
+        self.expense_value = self._stat_card_value("#e74c3c")
         self.expense_card.layout().addWidget(self.expense_value)
         cards_row.addWidget(self.expense_card)
 
         # 收入卡片
-        self.income_card = self._make_stat_card("📈 收入合计", "#27ae60")
+        self.income_card = self._make_stat_card("收入合计", "#27ae60")
         self.income_value = self._stat_card_value("#27ae60")
         self.income_card.layout().addWidget(self.income_value)
         cards_row.addWidget(self.income_card)
 
         # 结余卡片
-        self.balance_card = self._make_stat_card("💡 月度结余", "#e67e22")
+        self.balance_card = self._make_stat_card("月度结余", "#e67e22")
         self.balance_value = self._stat_card_value("#e67e22")
         self.balance_card.layout().addWidget(self.balance_value)
         cards_row.addWidget(self.balance_card)
@@ -1312,37 +1316,43 @@ class MainWindow(QMainWindow):
         return page
 
     def _make_stat_card(self, title, accent_color):
-        """创建统计卡片：白色圆角 + 彩色顶部横条 + 阴影"""
+        """创建统计卡片：白色圆角 + 彩色圆点 + 阴影"""
         card = make_card()
-        card.setStyleSheet(f"""
-            QWidget {{
-                background: {Colors.CARD_BG};
-                border: 1px solid {Colors.CARD_BORDER};
-                border-top: 3px solid {accent_color};
-                border-radius: 14px;
-            }}
-        """)
-        # 注意：setGraphicsEffect 在 make_card 中调用过，这里需要重新设置因为 setStyleSheet 会覆盖
-        # 实际上不会覆盖，但为了安全我们手动设置
-        card.setGraphicsEffect(shadow(20, (0, 2), 8))
+        card.setGraphicsEffect(shadow(16, (0, 2), 6))
 
         card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(20, 16, 20, 20)
-        card_layout.setSpacing(8)
+        card_layout.setContentsMargins(24, 20, 24, 20)
+        card_layout.setSpacing(10)
+
+        # 标题行：彩色圆点 + 文字
+        title_row = QHBoxLayout()
+        title_row.setSpacing(8)
+        title_row.setContentsMargins(0, 0, 0, 0)
+
+        dot = QLabel("●")
+        dot.setStyleSheet(f"font-size: 8px; color: {accent_color}; background: transparent;")
+        dot.setFixedWidth(12)
+        title_row.addWidget(dot)
 
         title_label = QLabel(title)
-        title_label.setStyleSheet(f"font-size: 13px; color: {Colors.TEXT_SECONDARY}; background: transparent; font-weight: bold;")
-        card_layout.addWidget(title_label)
+        title_label.setStyleSheet(
+            f"font-size: 13px; color: {Colors.TEXT_SECONDARY}; background: transparent;"
+        )
+        title_row.addWidget(title_label)
+        title_row.addStretch()
+
+        card_layout.addLayout(title_row)
 
         return card
 
     def _stat_card_value(self, color):
         lbl = QLabel("¥ 0.00")
         lbl.setStyleSheet(f"""
-            font-size: 28px;
-            font-weight: bold;
+            font-size: 26px;
+            font-weight: 600;
             color: {color};
             background: transparent;
+            padding-left: 2px;
         """)
         return lbl
 
