@@ -14,8 +14,8 @@ from PyQt6.QtWidgets import (
     QDateEdit, QTextEdit, QFrame, QGridLayout, QDialogButtonBox,
     QSizePolicy, QSpacerItem, QGraphicsDropShadowEffect, QToolButton, QStyle, QMenu
 )
-from PyQt6.QtCore import Qt, QDate, pyqtSignal
-from PyQt6.QtGui import QFont, QColor, QPalette, QIcon, QAction
+from PyQt6.QtCore import Qt, QDate, pyqtSignal, QTimer, QRectF
+from PyQt6.QtGui import QFont, QColor, QPalette, QIcon, QAction, QPainter, QPen, QBrush, QKeyEvent
 
 # Matplotlib for pie chart
 import matplotlib
@@ -712,6 +712,242 @@ def make_section_label(text):
 
 
 # ============================================
+# 贪吃蛇游戏组件（QPainter 自绘制）
+# ============================================
+class SnakeGameWidget(QWidget):
+    """贪吃蛇 — 用 QPainter 在画布上绘制蛇、食物、网格"""
+
+    CELL = 25           # 每格像素大小
+    COLS = 20           # 横向格子数
+    ROWS = 20           # 纵向格子数
+    START_SPEED = 120   # 初始速度（毫秒/步，越小越快）
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        # 固定画布大小：棋盘 + 边框 + 底部分数区
+        self.W = self.COLS * self.CELL + 2
+        self.H = self.ROWS * self.CELL + 2
+        self.setFixedSize(self.W, self.H + 36)
+        self.reset_game()
+
+    def reset_game(self):
+        """初始化/重置游戏状态（等待点击开始）"""
+        self.snake = [(self.ROWS // 2, self.COLS // 2 - 2),
+                      (self.ROWS // 2, self.COLS // 2 - 3),
+                      (self.ROWS // 2, self.COLS // 2 - 4)]
+        self.direction = (0, 1)
+        self.next_direction = (0, 1)
+        self.food = self._place_food()
+        self.score = 0
+        self.game_over = False
+        self.paused = False
+        self.waiting = True   # 等待点击"开始游戏"
+
+        if hasattr(self, 'timer'):
+            self.timer.stop()
+            self.timer.deleteLater()  # 释放旧计时器，防止对象泄漏
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self._tick)
+        self.timer.setInterval(self.START_SPEED)
+        # 不自动启动 timer，等点击"开始游戏"
+        self.update()
+
+    def start_game(self):
+        """点击开始游戏按钮后启动（完全重置游戏状态）"""
+        if not self.waiting:
+            return
+        # 完全重置游戏状态，避免 game_over/分数/蛇身残留
+        self.reset_game()
+        self.waiting = False
+        self.timer.start()
+        self.setFocus()  # 让游戏画布获得键盘焦点
+        self.update()
+
+    def _place_food(self):
+        """在空白位置随机生成食物"""
+        import random
+        while True:
+            pos = (random.randint(0, self.ROWS - 1),
+                   random.randint(0, self.COLS - 1))
+            if pos not in self.snake:
+                return pos
+
+    def _tick(self):
+        """每帧更新：移动蛇、检测碰撞"""
+        if self.game_over or self.paused:
+            return
+
+        # 防止 180 度掉头（一个 tick 内快速按两个方向键可能绕过 keyPressEvent 的检测）
+        dr, dc = self.next_direction
+        if (dr, dc) != (-self.direction[0], -self.direction[1]):
+            self.direction = self.next_direction
+        # 如果是反向，保持原方向，忽略这次掉头
+
+        head_r, head_c = self.snake[0]
+        dr, dc = self.direction
+        new_head = (head_r + dr, head_c + dc)
+
+        # 撞墙检测
+        if not (0 <= new_head[0] < self.ROWS and 0 <= new_head[1] < self.COLS):
+            self._die()
+            return
+
+        # 撞自己检测
+        if new_head in self.snake:
+            self._die()
+            return
+
+        self.snake.insert(0, new_head)
+
+        # 吃到食物
+        if new_head == self.food:
+            self.score += 10
+            # 棋盘占满 = 玩家胜利（防 while True 死循环）
+            if len(self.snake) >= self.ROWS * self.COLS:
+                self._die()
+                self.update()
+                return
+            self.food = self._place_food()
+            # 每 50 分加一次速
+            if self.score % 50 == 0:
+                new_interval = max(40, self.timer.interval() - 15)
+                self.timer.setInterval(new_interval)
+        else:
+            self.snake.pop()  # 没吃到就去尾
+
+        self.update()
+
+    def _die(self):
+        """游戏结束"""
+        self.game_over = True
+        self.waiting = True
+        self.timer.stop()
+        self.update()
+
+    def keyPressEvent(self, event: QKeyEvent):
+        """键盘控制"""
+        # 忽略按键自动重复（按住不放时操作系统发送的重复事件）
+        # 避免暂停键反复切换、方向键加速堆积
+        if event.isAutoRepeat():
+            return
+
+        key = event.key()
+
+        # 等待或游戏结束后，不响应方向键
+        if self.waiting or self.game_over:
+            return
+
+        # 暂停
+        if key in (Qt.Key.Key_Space, Qt.Key.Key_P):
+            self.paused = not self.paused
+            self.update()
+            return
+
+        # 方向键 + WASD（禁止原地掉头）
+        if key in (Qt.Key.Key_Up, Qt.Key.Key_W):
+            if self.direction != (1, 0):
+                self.next_direction = (-1, 0)
+        elif key in (Qt.Key.Key_Down, Qt.Key.Key_S):
+            if self.direction != (-1, 0):
+                self.next_direction = (1, 0)
+        elif key in (Qt.Key.Key_Left, Qt.Key.Key_A):
+            if self.direction != (0, 1):
+                self.next_direction = (0, -1)
+        elif key in (Qt.Key.Key_Right, Qt.Key.Key_D):
+            if self.direction != (0, -1):
+                self.next_direction = (0, 1)
+
+    def paintEvent(self, event):
+        """绘制整个游戏画面"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        w, h = self.W, self.H
+
+        # ---- 棋盘背景 ----
+        painter.fillRect(0, 0, w, h, QColor("#2c2c2c"))        # 外边框色
+        painter.fillRect(1, 1, w - 2, h - 2, QColor("#16213e"))  # 棋盘底色
+
+        # ---- 网格线 ----
+        painter.setPen(QPen(QColor("#1a1a3e"), 0.5))
+        for i in range(self.COLS + 1):
+            x = 1 + i * self.CELL
+            painter.drawLine(x, 1, x, 1 + h - 2)
+        for i in range(self.ROWS + 1):
+            y = 1 + i * self.CELL
+            painter.drawLine(1, y, 1 + w - 2, y)
+
+        # ---- 食物（红色发光圆） ----
+        fr, fc = self.food
+        fx = 1 + fc * self.CELL + 3
+        fy = 1 + fr * self.CELL + 3
+        fs = self.CELL - 6
+        painter.setBrush(QBrush(QColor("#ff6b6b")))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(QRectF(fx, fy, fs, fs))
+
+        # ---- 蛇身 ----
+        for i, (r, c) in enumerate(self.snake):
+            sx = 1 + c * self.CELL + 2
+            sy = 1 + r * self.CELL + 2
+            ss = self.CELL - 4
+
+            if i == 0:
+                # 蛇头：亮绿色
+                painter.setBrush(QBrush(QColor("#00d2ff")))
+            else:
+                # 蛇身：渐变蓝绿
+                t = i / max(len(self.snake), 1)
+                g = int(180 - t * 100)
+                b = int(220 - t * 80)
+                painter.setBrush(QBrush(QColor(0, g, b)))
+
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(QRectF(sx, sy, ss, ss), 5, 5)
+
+        # ---- 底部信息栏 ----
+        info_y = h + 6
+        painter.setPen(QPen(QColor(Colors.TEXT_PRIMARY), 1))
+        painter.setFont(QFont("Microsoft YaHei", 13, QFont.Weight.Bold))
+        painter.drawText(2, info_y + 18, f"🍎 得分: {self.score}")
+
+        hint = "←↑↓→ / WASD 移动    空格 暂停"
+        if self.game_over:
+            hint = "点击下方「开始游戏」重新开始"
+        elif self.waiting:
+            hint = "点击下方「开始游戏」按钮"
+        elif self.paused:
+            hint = "暂停中，按 空格 继续"
+        painter.setPen(QPen(QColor(Colors.TEXT_MUTED), 1))
+        painter.setFont(QFont("Microsoft YaHei", 11))
+        tw = painter.fontMetrics().horizontalAdvance(hint)
+        painter.drawText(int(w - tw - 2), info_y + 18, hint)
+
+        # ---- 等待开始遮罩（仅在未死亡时显示，避免与游戏结束遮罩重叠） ----
+        if self.waiting and not self.game_over:
+            painter.fillRect(0, 0, w, h, QColor(0, 0, 0, 130))
+            painter.setPen(QPen(QColor("#ffffff"), 1))
+            painter.setFont(QFont("Microsoft YaHei", 20, QFont.Weight.Bold))
+            painter.drawText(QRectF(0, h // 2 - 20, w, 40),
+                             Qt.AlignmentFlag.AlignCenter, "准备开始！")
+
+        # ---- 游戏结束遮罩 ----
+        if self.game_over:
+            painter.fillRect(0, 0, w, h, QColor(0, 0, 0, 170))
+            painter.setPen(QPen(QColor("#ff6b6b"), 1))
+            painter.setFont(QFont("Microsoft YaHei", 26, QFont.Weight.Bold))
+            painter.drawText(QRectF(0, h // 2 - 36, w, 36),
+                             Qt.AlignmentFlag.AlignCenter, "游 戏 结 束")
+            painter.setPen(QPen(QColor("#ffffff"), 1))
+            painter.setFont(QFont("Microsoft YaHei", 15))
+            painter.drawText(QRectF(0, h // 2 + 8, w, 30),
+                             Qt.AlignmentFlag.AlignCenter, f"最终得分: {self.score}")
+
+        painter.end()
+
+
+# ============================================
 # 主窗口
 # ============================================
 class MainWindow(QMainWindow):
@@ -788,6 +1024,7 @@ class MainWindow(QMainWindow):
             ('records-list', '📋', '账单列表'),
             ('statistics', '📊', '月度统计'),
             ('categories', '🏷️', '分类管理'),
+            ('snake-game', '🐍', '贪吃蛇'),
         ]
         self.nav_btns = {}
         nav_widget = QWidget()
@@ -883,6 +1120,7 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(self._build_records_list_page())
         self.pages.addWidget(self._build_statistics_page())
         self.pages.addWidget(self._build_categories_page())
+        self.pages.addWidget(self._build_snake_game_page())
         content_layout.addWidget(self.pages)
 
         parent_layout.addWidget(content, 1)
@@ -892,7 +1130,13 @@ class MainWindow(QMainWindow):
             btn.setChecked(False)
         self.nav_btns[page_name].setChecked(True)
 
-        page_map = {'add-record': 0, 'records-list': 1, 'statistics': 2, 'categories': 3}
+        page_map = {'add-record': 0, 'records-list': 1, 'statistics': 2, 'categories': 3, 'snake-game': 4}
+
+        # 离开蛇游戏页面时，停止计时器并结束轮询
+        if self.pages.currentIndex() == page_map['snake-game'] and page_name != 'snake-game':
+            self.snake_game.timer.stop()
+            self.snake_game.waiting = True  # 终止 _check_game_state 轮询
+
         self.pages.setCurrentIndex(page_map[page_name])
 
         if page_name == 'records-list':
@@ -903,6 +1147,8 @@ class MainWindow(QMainWindow):
             self._load_categories()
         elif page_name == 'add-record':
             self._load_categories_for_form()
+        elif page_name == 'snake-game':
+            self.snake_game.reset_game()
 
     # ============================================
     # 页面1：记一笔（卡片 + 阴影 + 渐变按钮）
@@ -1531,6 +1777,92 @@ class MainWindow(QMainWindow):
 
             row, col = i // cols, i % cols
             self.categories_grid.addWidget(card, row, col)
+
+    # ============================================
+    # 页面5：贪吃蛇小游戏
+    # ============================================
+    def _build_snake_game_page(self):
+        page = QWidget()
+        page.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(page)
+        layout.setSpacing(16)
+
+        layout.addWidget(make_page_title("🐍  贪吃蛇"))
+        layout.addSpacing(4)
+
+        # 说明卡片
+        hint_card = QWidget()
+        hint_card.setStyleSheet(f"""
+            background: {Colors.ACCENT_LIGHT};
+            border: 1px solid {Colors.ACCENT};
+            border-radius: 10px;
+        """)
+        hint_layout = QHBoxLayout(hint_card)
+        hint_layout.setContentsMargins(16, 10, 16, 10)
+        hint_label = QLabel("🎮  方向键/WASD 控制蛇的方向，空格暂停，吃到红色食物得分")
+        hint_label.setStyleSheet(f"color: {Colors.TEXT_PRIMARY}; font-size: 14px; background: transparent; border: none;")
+        hint_layout.addWidget(hint_label)
+        layout.addWidget(hint_card)
+
+        # 开始游戏按钮
+        btn_wrapper = QWidget()
+        btn_wrapper.setStyleSheet("background: transparent;")
+        btn_layout = QHBoxLayout(btn_wrapper)
+        btn_layout.setContentsMargins(0, 0, 0, 0)
+        btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.start_btn = QPushButton("🎮  开 始 游 戏")
+        self.start_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.start_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {Colors.ACCENT};
+                color: #fff;
+                border: none;
+                border-radius: 12px;
+                padding: 14px 48px;
+                font-size: 18px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background: {Colors.ACCENT_HOVER};
+            }}
+        """)
+        self.start_btn.clicked.connect(self._start_snake_game)
+        btn_layout.addWidget(self.start_btn)
+        layout.addWidget(btn_wrapper)
+
+        # 游戏区（居中）
+        game_wrapper = QWidget()
+        game_wrapper.setStyleSheet("background: transparent;")
+        game_layout = QHBoxLayout(game_wrapper)
+        game_layout.setContentsMargins(0, 0, 0, 0)
+        game_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.snake_game = SnakeGameWidget()
+        self.snake_game.setStyleSheet("background: transparent;")
+        game_layout.addWidget(self.snake_game)
+
+        layout.addWidget(game_wrapper)
+        layout.addStretch()
+
+        return page
+
+    def _start_snake_game(self):
+        """点击"开始游戏"按钮"""
+        self.snake_game.start_game()
+        # 游戏开始后把按钮文字改成提示
+        self.start_btn.setText("🎮  游戏中...")
+        self.start_btn.setEnabled(False)
+        # 用定时器检测游戏状态，结束后恢复按钮
+        self._check_game_state()
+
+    def _check_game_state(self):
+        """轮询游戏是否结束/等待，恢复按钮"""
+        if self.snake_game.waiting:
+            self.start_btn.setText("🎮  开 始 游 戏")
+            self.start_btn.setEnabled(True)
+        else:
+            QTimer.singleShot(200, self._check_game_state)
 
     def _add_category(self):
         name = self.new_cat_name.text().strip()
