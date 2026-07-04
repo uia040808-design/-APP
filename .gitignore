@@ -1,0 +1,10 @@
+# Python 运行时产生的临时文件
+__pycache__/
+*.pyc
+*.pyo
+
+# 旧的 Electron 依赖（已不适用）
+node_modules/
+
+# Claude 内部文件（不是项目代码）
+.claude/
