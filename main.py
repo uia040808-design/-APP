@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel, QLineEdit, QComboBox, QTableWidget, QTableWidgetItem,
     QStackedWidget, QHeaderView, QMessageBox, QDialog, QFormLayout,
     QDateEdit, QTextEdit, QFrame, QGridLayout, QDialogButtonBox,
-    QSizePolicy, QSpacerItem, QGraphicsDropShadowEffect
+    QSizePolicy, QSpacerItem, QGraphicsDropShadowEffect, QToolButton, QStyle, QMenu
 )
 from PyQt6.QtCore import Qt, QDate, pyqtSignal
 from PyQt6.QtGui import QFont, QColor, QPalette, QIcon, QAction
@@ -1113,16 +1113,23 @@ class MainWindow(QMainWindow):
 
         # 表格
         self.records_table = QTableWidget()
-        self.records_table.setColumnCount(6)
-        self.records_table.setHorizontalHeaderLabels(['日期', '类型', '分类', '金额', '备注', '操作'])
-        self.records_table.horizontalHeader().setStretchLastSection(True)
-        self.records_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.records_table.setColumnCount(5)
+        self.records_table.setHorizontalHeaderLabels(['日期', '类型', '分类', '金额', '备注'])
+        # 五列均分拉伸
+        header = self.records_table.horizontalHeader()
+        for col in range(5):
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.Stretch)
+
         self.records_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.records_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.records_table.setAlternatingRowColors(True)
         self.records_table.setShowGrid(False)
         self.records_table.verticalHeader().setVisible(False)
         self.records_table.setGraphicsEffect(shadow())
+
+        # 右键菜单
+        self.records_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.records_table.customContextMenuRequested.connect(self._on_table_context_menu)
         # 交替行颜色通过 palette 设置
         self.records_table.setStyleSheet(f"""
             QTableWidget {{
@@ -1161,75 +1168,63 @@ class MainWindow(QMainWindow):
         self.records_table.setRowCount(len(records))
         for i, r in enumerate(records):
             # 日期
-            self.records_table.setItem(i, 0, QTableWidgetItem(r['date']))
+            date_item = QTableWidgetItem(r['date'])
+            date_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.records_table.setItem(i, 0, date_item)
 
             # 类型
             type_text = '支出' if r['type'] == 'expense' else '收入'
             type_item = QTableWidgetItem(type_text)
+            type_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             type_item.setForeground(QColor(Colors.DANGER) if r['type'] == 'expense' else QColor(Colors.SUCCESS))
             self.records_table.setItem(i, 1, type_item)
 
             # 分类
-            self.records_table.setItem(i, 2, QTableWidgetItem(r['category']))
+            cat_item = QTableWidgetItem(r['category'])
+            cat_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.records_table.setItem(i, 2, cat_item)
 
             # 金额
             sign = '-' if r['type'] == 'expense' else '+'
             amount_text = f"{sign}¥ {abs(r['amount']):,.2f}"
             amt_item = QTableWidgetItem(amount_text)
+            amt_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             amt_item.setForeground(QColor(Colors.DANGER) if r['type'] == 'expense' else QColor(Colors.SUCCESS))
             self.records_table.setItem(i, 3, amt_item)
 
             # 备注
-            self.records_table.setItem(i, 4, QTableWidgetItem(r['note'] or '-'))
+            note_item = QTableWidgetItem(r['note'] or '-')
+            note_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.records_table.setItem(i, 4, note_item)
 
-            # 操作按钮
-            btn_widget = QWidget()
-            btn_widget.setStyleSheet("background: transparent;")
-            btn_layout = QHBoxLayout(btn_widget)
-            btn_layout.setContentsMargins(4, 4, 4, 4)
-            btn_layout.setSpacing(8)
+            # 把记录 ID 存到第一列，右键菜单时用
+            date_item.setData(Qt.ItemDataRole.UserRole, r['id'])
 
-            edit_btn = QPushButton("编辑")
-            edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            edit_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background: transparent;
-                    color: {Colors.TEXT_SECONDARY};
-                    border: 1.5px solid {Colors.CARD_BORDER};
-                    border-radius: 6px;
-                    padding: 5px 14px;
-                    font-size: 14px;
-                }}
-                QPushButton:hover {{
-                    border-color: {Colors.ACCENT};
-                    color: {Colors.ACCENT};
-                    background: {Colors.ACCENT_LIGHT};
-                }}
-            """)
-            edit_btn.clicked.connect(lambda checked, rid=r['id']: self._edit_record(rid))
-            btn_layout.addWidget(edit_btn)
+    def _on_table_context_menu(self, pos):
+        """右键菜单：编辑 / 删除"""
+        item = self.records_table.itemAt(pos)
+        if item is None:
+            return
+        row = item.row()
+        # 从第一列取记录 ID
+        date_item = self.records_table.item(row, 0)
+        if date_item is None:
+            return
+        rec_id = date_item.data(Qt.ItemDataRole.UserRole)
+        if rec_id is None:
+            return
 
-            del_btn = QPushButton("删除")
-            del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            del_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background: transparent;
-                    color: {Colors.DANGER};
-                    border: 1px solid {Colors.DANGER};
-                    border-radius: 6px;
-                    padding: 5px 14px;
-                    font-size: 14px;
-                }}
-                QPushButton:hover {{
-                    background: {Colors.DANGER};
-                    color: #fff;
-                }}
-            """)
-            del_btn.clicked.connect(lambda checked, rid=r['id']: self._delete_record(rid))
-            btn_layout.addWidget(del_btn)
+        menu = QMenu(self)
+        edit_action = menu.addAction("✏  编辑")
+        del_action = menu.addAction("🗑  删除")
+        # 删除用红色
+        del_action.setData(True)  # 标记为删除操作
 
-            self.records_table.setCellWidget(i, 5, btn_widget)
-            self.records_table.setRowHeight(i, 52)
+        action = menu.exec(self.records_table.viewport().mapToGlobal(pos))
+        if action == edit_action:
+            self._edit_record(rec_id)
+        elif action == del_action:
+            self._delete_record(rec_id)
 
     def _edit_record(self, rec_id):
         records = self.db.get_records()
