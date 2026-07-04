@@ -8,3 +8,8 @@ node_modules/
 
 # Claude 内部文件（不是项目代码）
 .claude/
+
+# PyInstaller 打包产物（每次可重新生成）
+build/
+dist/
+*.spec
