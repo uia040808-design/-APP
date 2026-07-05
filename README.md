@@ -85,6 +85,8 @@ python main.py
 | `/start` | 一键启动 | 自动检查依赖 → 安装 → 启动应用 |
 | `/rebuild-app` | 重新打包 | 用 PyInstaller 将应用打包成独立 `.exe` 文件 |
 | `/unit-test` | 单元测试 | 分析代码 → 编写测试 → 运行 → 生成报告 |
+| `/comments-check` | 注释检查 | 检查代码注释覆盖率、注释是否与代码一致、是否通俗易懂 |
+| `/security-audit` | 安全审计 | 检查 SQL 注入、硬编码密钥、危险函数等安全隐患 |
 
 ### 全局技能（所有项目可用）
 
@@ -96,7 +98,34 @@ python main.py
 
 | 名称 | 功能 | 说明 |
 |------|------|------|
-| `tester` | 测试工程师 | 自动分析代码并补充单元测试，适合需要批量编写测试时使用 |
+| `tester` | 测试工程师 | 自动分析代码并补充单元测试，运行后自动写入测试通行证 |
+| `quality-engineer` | 质量工程师 | 从安全、注释、规范、错误处理、性能五个维度审计代码质量 |
+| `gitcommit-agent` | 提交门禁 | 调度 tester + quality-engineer，两项通过后颁发通行证 |
+
+---
+
+## 🚧 Git 提交门禁
+
+本项目配置了 Git 提交门禁系统，确保每次提交的代码都通过了**单元测试**和**代码质量检查**。
+
+### 工作流程
+
+```
+改代码 → /gitcommit → ✅ 通行证 → /git-save → 提交成功
+```
+
+1. **`/gitcommit`** — 自动运行 tester（单元测试）和 quality-engineer（质量检查），两项通过后颁发"通行证"
+2. **`/git-save`** — 提交时，pre-commit hook 检查通行证，有则放行，没有则拦截
+3. **自动清理** — 提交成功后，post-commit hook 自动删除旧通行证，下次提交必须重新检查
+
+### 通行证标准
+
+| 检查项 | 通过标准 |
+|--------|---------|
+| 单元测试 | 全部用例通过（当前 32 个） |
+| 代码质量 | 总分 ≥ 70/100（B 级及以上） |
+
+> 💡 如果直接执行 `git commit` 或 `/git-save` 而没有事先运行 `/gitcommit`，提交会被拦截并提示先获取通行证。
 
 ---
 
@@ -154,13 +183,21 @@ python -m pytest test_main.py -v
 ├── CLAUDE.md                      # 项目开发说明
 ├── README.md                      # 本文件
 ├── .gitignore                     # Git 忽略规则
+├── .git/hooks/
+│   ├── pre-commit                 # 提交前门禁：检查通行证
+│   └── post-commit                # 提交后清理：销毁旧通行证
 ├── .claude/
 │   ├── agents/
-│   │   └── tester.md              # 测试子代理
-│   └── skills/
-│       ├── start/SKILL.md         # /start 一键启动
-│       ├── rebuild-app/SKILL.md   # /rebuild-app 重新打包
-│       └── unit-test/SKILL.md     # /unit-test 单元测试
+│   │   ├── tester.md              # 测试子代理
+│   │   ├── quality-engineer.md    # 代码质量子代理
+│   │   └── gitcommit-agent.md     # 提交门禁子代理
+│   ├── skills/
+│   │   ├── start/SKILL.md         # /start 一键启动
+│   │   ├── rebuild-app/SKILL.md   # /rebuild-app 重新打包
+│   │   ├── unit-test/SKILL.md     # /unit-test 单元测试
+│   │   ├── comments-check/SKILL.md # /comments-check 注释检查
+│   │   └── security-audit/SKILL.md # /security-audit 安全审计
+│   └── checkpoints/               # 通行证存放目录
 └── dist/
     └── 晚秋记账.exe                # 打包后的独立可执行文件
 ```
